@@ -1,0 +1,369 @@
+---
+title: "Milestone Report"
+author: "Milton Candela"
+date: "2/13/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tm)
+library(dplyr)
+library(ngram)
+library(tokenizers)
+```
+
+# Introduction
+
+This report is for the *Data Science Capstone Project* course on *Coursera*, delivered by *The Johns Hopkins University*. The purpose of this report is to show some exploratory analysis of the data sets given (which contain mainly unstructured text data) and build a simple n-gram model which will be worked across the whole course in order to improve its efficiency, as well as its compatibility, it may be used in order to predict the next word using other languages as well.
+
+## Loading the data
+
+We will be using three text files that contain a series of characters that represent words written by users in three distinct formats:
+
+* Blogs
+* News
+* Twitter
+
+The three formats have their own language, the different languages included are the following:
+
+* English
+* German
+* French
+* Russian
+
+There are some problems when developing a model which predict the next word, for example, the multiple contractions in French or the multiple nouns in German. So only the English language will be worked on this first report, using bar plots and charts in order to represent the differences between the three text files that correspond to the selected language.
+
+In order to load the data, a function is used so the process can be automated, the **fileRead** function will read all the lines of the document using the **readLines** function, we will store the data in three different variables in order to treat the data separately, the data stored in these character variables will be processed later to work with these unstructured data.
+
+```{r loading, warning = FALSE}
+
+fileRead <- function(file) {
+        camino <- paste('data/final/en_US/en_US.', file, '.txt', sep = '') # The path of the files
+        con <- file(camino, 'r') # Connection to the file is opened
+        doc <- readLines(con, skipNul = TRUE) # The document is read depending on the connection opened
+        close(con) # The connection is closed
+        return(doc)
+}
+
+blogs_file <- fileRead('blogs')
+news_file <- fileRead('news')
+twitter_file <- fileRead('twitter')
+```
+
+## Summary of the data
+
+The data is very messy to visualize, because it mostly contains a series of characters and it is not divided by sentences, the following data frame contains the size, number of lines, as well as the number of words of each file, it is easier to visualize, and illustrates more clearly the unique features of the three text files, as well as their common characteristics.
+
+```{r summary}
+
+dfsum <- data.frame(
+        File = c('Blogs', 'News', 'Twitter'),
+        Size = c(file.size('data/final/en_US/en_US.blogs.txt')/1024/1024,
+                 file.size('data/final/en_US/en_US.news.txt')/1024/1024,
+                 file.size('data/final/en_US/en_US.twitter.txt')/1024/1024),
+        Lines = c(length(blogs_file), length(news_file), length(twitter_file)),
+        Words = c(sum(count_words(blogs_file)),
+                  sum(count_words(news_file)),
+                  sum(count_words(twitter_file)))
+        )
+
+dfsum
+```
+
+As the data frame reflect, the twitter file is the most lightest file, but includes many lines comparing to the other two files, this is due to the fact that it represents a lot of tweets separately. This feature of separate lines is seen in the blogs file, because it contains multiple entries that use a lot of colloquial language that represent the almost 40 million words used. Although the news file has the the least amount of lines among the three, it uses more complex words, so it uses the least amount of lines and the least amount of words and still weights the same as the blogs file.
+
+In the next section *Bar plots of the summary*, bar plots will be used in order to spot these differences graphically
+
+## Bar plots of the summary
+
+The following bar plots explain more clearly the differences of the three text files. Each bar plot addresses one of the three features previously presented, and a specific color-coding will be used among the three graphs to identify each file.
+
+```{r color}
+colors <- c('gray75', 'lightsalmon', 'lightblue') # Colors will be used 
+```
+
+### Size plot
+
+The size among the files is very similar and does not represent a big difference, we can see that the twitter file is slightly lower by 40 Mb, but they contain similar size of information, although differently distributed.
+
+```{r bar_size}
+
+colors <- c('gray75', 'lightsalmon', 'lightblue') # Colors will be used 
+
+with(dfsum, barplot(Size, names.arg = File,
+     ylab = 'Space occupied by the file (in MB)',
+     xlab = 'Name of the file',
+     main = 'Size of each file',
+     col = colors))
+```
+
+### Lines plot
+
+The bar plot representing the number of lines of each document gives us a better view on how the data is distributed, twitter has the most lines but it is because on the structure of the data (which is mainly given by mini entries of text).
+
+```{r bar_lines}
+
+with(dfsum, barplot(Lines/1000000, names.arg = File,
+     ylab = 'Number of lines (#) in Millions',
+     xlab = 'Name of the file',
+     main = 'Number of lines of each file',
+     col = colors))
+```
+
+### Words plot
+
+The number of words plot is quite interesting, because the news file contains very little words comparing to the other files, this may be due to the type of vocabulary used or due to the inconsistencies of the data. As data coming from a news webpage may be cleaner and more structured when compared on data provided by blogs or twitter, users could use special characters and there is not as many filters as news data has.
+
+```{r bar_words}
+
+with(dfsum, barplot(Words/1000000, names.arg = File,
+     ylab = 'Number of Words (#) in Millions',
+     xlab = 'Name of the file',
+     main = 'Number of words per file',
+     col = colors))
+```
+
+## Corpus creation
+
+A corpus will be created so the data can be processed on a more specialized, structured way. A corpus is a set of documents which contains each of the separate files. The encoding used is **UTF-8** because some of the files contained various special characters that made impossible to use the more traditional, structured **ASCII** encoding.
+
+```{r corpus_create}
+camino <- 'data/final/en_US' # Only the location of the text files is required
+engCorpus <- Corpus(DirSource(directory = camino, mode = 'text', encoding = 'UTF-8'))
+```
+
+## Corpus cleaning
+
+As I have been saying, the data is very messy and contains a lot of punctuation marks, as well as special characters. So it requires cleaning in order to do the proper text mining, and the further text prediction. To achieve this objective, a function was created by the name of **cleanCorp**, which uses functions included in the **tm** package that make some transformations to a corpus variable.
+
+The transformations used are the following:
+
+* removePunctuation
+* stripWhitespace
+* tolower
+
+These transformations improve the efficiency of a text-predicting model because it formats all the words in a proper way, this gives the same weight to all the words, even though they are capitalized or they contained a punctuation mark, reducing duplicates.
+
+Also, for this report only the news file will be analyzed completely, because it contains more structured unstructured data than the other files, it also contains fewer words and fewer lines, which makes the computation feasible and significant.
+
+```{r clean}
+
+newsCorpus <- NA
+
+cleanCorp <- function(corpus, lower){
+        corp <- tm_map(corpus, removePunctuation)
+        corp <- tm_map(corp, stripWhitespace)
+        corp <- tm_map(corp, content_transformer(tolower))
+        
+        return(corp)
+}
+
+newsCorpus <- cleanCorp(engCorpus[2]) # The second index represent the news file
+```
+
+## Term document matrix
+
+A term document matrix is a matrix which contains all the words included in a document, as well as its frequencies, it will be useful further in the report in order to analyze the text and create the n-grams. I have created a function that transforms a corpus into a term document matrix type of file, and removes some elements (in this case words) that are sparse.
+
+```{r }
+
+tdmGenerator <- function(corp){
+        tdm <- TermDocumentMatrix(corp)
+        
+        tdm <- removeSparseTerms(tdm, 0.7) # Maximal allowed sparsity
+        return(tdm)
+}
+```
+
+## Frequency ratio plots
+
+Now we will make an analysis of the frequency of words within the news file, and know how many top words do we need to include in order to cover most of the vocabulary used, this depends on the most frequent words and represents how some words make up the whole file. And also represents how the data is still messy, having some terms with only 1 frequency.
+
+I have decided to subset the **tdm** (term document matrix) and only include words which appeared, at least, 20 times. So that the top words are significant, however, the words that were not included on the analysis are still counted towards the total word count, this will present a realistic view on how a few words compose most of the text on the file.
+
+```{r frequency_ratio_plots, warning = FALSE}
+
+frequency_plots <- function(corpus, file){
+        
+        tdm <- tdmGenerator(corpus) # Call to the tdmGenerator helper function
+        
+        df_freq <- data.frame(Palabra = tdm$dimnames$Terms, Frecuencia = tdm$v)
+        
+        total_freq <- sum(df_freq[,2])
+        
+        df_freq <- df_freq[df_freq$Frecuencia > 20, ] # Subset of the data which appeared > 20 times
+               
+        df_freq <- df_freq[order(df_freq[,2], decreasing = TRUE),]
+        
+        total_words <- length(df_freq[,1])
+               
+        max_val <- total_words*0.33 # Using one third of the total words
+        step <- 1 # A step of 1 is used to get an accurate plot
+               
+        df_freq <- mutate(df_freq, Ratio = (Frecuencia/total_freq) * 100)
+               
+        df <- data.frame('Top_1' = df_freq[1,3])
+               
+        for (num in c(seq(1, max_val, step))){
+               current_num <- paste('Top_', num, sep = '')
+               df[,current_num] <- round(sum(df_freq[1:num, 3]),4)
+        }
+               
+        xdata <- c(0, 1, seq(2,max_val, step))
+        ydata <- c(0, df[,1:length(df)])
+        ydata <- as.numeric(unlist(ydata))
+               
+        plot(ydata ~ xdata, xlim = c(0,max_val), ylim = c(0,100),
+                    main = paste('Number of words chosen and total of words covered in', file), 
+                    xlab = 'Number (#) of words chosen', ylab = 'Percent (%) of total frequencies covered')
+        
+        fit <- lm(ydata ~ xdata)
+        fit2 <- loess(ydata ~ xdata, degree = 2, span = 0.95)
+        
+        abline(h = 70, col = 'blue') # Threshold of 70% of the frequencies of the whole document
+        lines(xdata, fit$fitted.values, col = 'red')
+        lines(xdata, fit2$fitted, col = 'orange')
+               
+        legend(legend = c('Points','Linear model', 'Second-order model'), 'topleft',
+        col = c('black', 'red', 'orange'), pch = c(20,-1,-1), lty = c(0,1,1))
+}
+
+frequency_plots(newsCorpus, 'news')
+```
+
+It is quite impressive that with less of a third of the total words, more than the 70% of the total frequencies are achieved, mainly because the first words are the most used by the English language, the so called stop words featuring the word **the**. The relationship between the percent of the total frequencies and the number of words chosen could not be explained by the linear model (red line), while a *loess* line using 2 as the degree of the polynomials used was not good enough either.    
+
+As it can be seen, there is a great learning curve on the beginning on the graph, this demonstrates that most frequent words are very important and represent most of the vocabulary used by the users. The next data set represent the top 10 words used on the news file, the second column is the frequency in which they are used, and the third column the percentage which these frequencies represent on the whole document.
+
+```{r top15_prep, include = FALSE}
+## Using part of the code included in the frequency_plots function
+
+tdm <- tdmGenerator(newsCorpus) # Call to the tdmGenerator helper function
+        
+df_freq <- data.frame(Palabra = tdm$dimnames$Terms, Frecuencia = tdm$v)
+        
+total_freq <- sum(df_freq[,2])
+
+df_freq <- df_freq[df_freq$Frecuencia > 20, ] # Subset of the data which appeared > 20 times
+               
+df_freq <- df_freq[order(df_freq[,2], decreasing = TRUE),]
+               
+df_freq <- mutate(df_freq, Ratio = (Frecuencia/total_freq) * 100)
+
+```
+
+```{r top15_pres}
+head(df_freq, 10)
+```
+
+As I have said before, the top words correspond to stop words that correspond to prepositions, these are usually removed when doing binary classification or sentiment analysis because they provide little information about the author of a text or whether a text corresponds to a certain type of text. Although, for the purposes of this investigation (text predicting), these stop words are key in order to know how a person will write next, so these words will be included in order to know the most probable next word.
+
+## Simple n_gram model
+
+The following code chunks create a simple n-gram model in order to know the next word depending on the most common pairs of words, we will use be using all the three files, because we will use random samples and get only 25% of the total lines depending on the file taken. This will be done in order to illustrate how the model work. Although random samples will be used, a seed will be placed for reproducible research purposes.
+
+The n-grams created are the following:
+
+* 2-gram using **blogs file**
+* 3-gram using **twitter file**
+* 4-gram using **news file**
+
+The **ngram** function provided by the **ngram** package requires that the data to be in a certain format, and to do not include *NA* values (this values can be obtained via whitespaces). So the **tokenizers** package will be used to tokenize (count the frequency of each word) each file, then these *NA* values will be removed so that the **ngram** function can operate properly.
+
+### 2-gram model
+
+First we get our random sample and set the *n* to 2 (bigram), and remove the *NA* values, these values represent a small percentage of the whole file, but it affects our n-gram performance and creation.
+
+```{r bi_gram_1}
+## Creating a 2-gram model using 25% of the blogs file
+
+set.seed(1023)
+
+n <- 2
+
+num_lines <- dfsum[dfsum$File == 'Blogs', 'Lines'] * .25 # Considering 25% of the total lines
+
+doc <- blogs_file[sample(1:num_lines)]
+
+bitokens <- unlist(tokenize_ngrams(doc, n = n))
+print(paste('Ratio of NAs in the bitokens: ', round(sum(is.na(bitokens))/length(bitokens) * 100, digits = 4), '%', sep = ''))
+```
+
+As the *NA* are being removed, then we input our bitokens to the **ngram** function.
+
+```{r bi_gram_2}
+bitoken_na <- na.omit(bitokens)
+bigram <- ngram(bitoken_na, n)
+
+head(get.phrasetable(bigram), 10)
+```
+
+These are the most common pairs from the blogs file, they mainly consist of *the* and a preposition, because these are the most common types of words in the English language, the informal repetitive language used in blogs also affect on these results.
+
+### 3-gram model
+
+For the trigram model, a similar methodology is used, but we are focusing on the twitter file and changing the *n* value to 3, instead of 2. The seed had been modified to maintain the integrity of this new model and reinforce which is the seed that leads to the current calculation.
+
+```{r tri_gram_1}
+## Creating a 3-gram model using 25% of the twitter file
+
+set.seed(1022)
+
+n <- 3
+
+num_lines <- dfsum[dfsum$File == 'Twitter', 'Lines'] * .25 # Considering 25% of the total lines
+
+doc <- twitter_file[sample(1:num_lines)]
+
+tritokens <- unlist(tokenize_ngrams(doc, n = n))
+print(paste('Ratio of NAs in the tritokens: ', round(sum(is.na(tritokens))/length(tritokens) * 100, digits = 4), '%', sep = ''))
+```
+
+There are also *NA* values on this file, but these are not significant to the whole file.
+
+```{r tri_gram_2}
+tritoken_na <- na.omit(tritokens)
+trigram <- ngram(tritoken_na, n)
+
+head(get.phrasetable(trigram), 10)
+```
+
+Looking at these pairs, we can grasp some frequent words used on twitter, these correspond to *thanks for the* (which is probably followed by *follow*), or *for the follow*. This denotes an important factor, that the source of data affects which is the most probable word, the type of language is different depending on the sources of information. 
+
+This factor makes that the model take one of the following routes:
+
+* Declare to which user is the model being addressed
+* Generate a generalizable model using the three types of writing
+
+The first option can make the model very accurate when addressing a certain type of user, while the second model can fit every type of user, but having (probably) a poor performance when compared to the specialized model.
+
+### 4-gram model
+
+This is the last model, we will be using the news file because it has more structured sentences, and this is an important factor when creating a great number of n-grams, these words are the least probable because they must be together, but are more accurate because they consider more words than the previous n-grams.
+
+```{r fou_gram_1}
+## Creating a 4-gram model using 25% of the news file
+
+set.seed(1021)
+
+n <- 4
+
+num_lines <- dfsum[dfsum$File == 'News', 'Lines'] * .25 # Considering 25% of the total lines
+
+doc <- news_file[sample(1:num_lines)]
+
+foutokens <- unlist(tokenize_ngrams(doc, n = n))
+print(paste('Ratio of NAs in the tritokens: ', round(sum(is.na(foutokens))/length(foutokens) * 100, digits = 4), '%', sep = ''))
+```
+
+There are also a few *NA* values involved, but they can be removed via the **na.omit** function.
+
+```{r fou_gram_2}
+foutoken_na <- na.omit(foutokens)
+fougram <- ngram(foutoken_na, n)
+
+head(get.phrasetable(fougram), 10)
+```
+
+Quite interesting results given by these last n-gram, the bias included by the language is observed in this file, as *said in a statement* appears as a frequent group of words. The group of four sequential words are not frequently encountered (as it can be seen on the low prop on the prop column), but the text predicting model will first start with the biggest n-gram created, and if it does not found a match then it will go the (n-1)-gram model, and so on until it finds a match at least with the monomer.

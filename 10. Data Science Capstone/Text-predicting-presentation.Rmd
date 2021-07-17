@@ -1,0 +1,101 @@
+---
+title: "Text-predictive-model-presentation"
+author: "Milton Candela"
+date: "2/22/2021"
+output: slidy_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ngram)
+library(tokenizers)
+library(tidyverse)
+library(tm)
+```
+
+## Raw data used
+
+```{r summary, include = FALSE, warning = FALSE}
+
+dfsum <- data.frame(
+        File = c('Blogs', 'News', 'Twitter'),
+        Size = c(200.4242, 196.2775, 159.3641),
+        Lines = c(0.899288, 0.077258, 2.360148),
+        Words = c(38.154238, 2.693883, 30.218166)
+        )
+
+colnames(dfsum) <- c('File', 'Size (Mb)', 'Lines (Millions)', 'Words (Millions)')
+```
+
+The predicting model uses data from three files which contain formal and informal language in order to generalize, the data frame below describes the three files used.
+
+```{r dataset, echo = FALSE}
+dfsum
+```
+
+Using the three files to train the model would be computationally unfeasible, so only 20% of the total lines from each file were used (reducing bias as proportions were used).
+
+Also, the three files were in English and this is the only language supported by the application, as including other languages would have reduced greatly on the performance and speed of the algorithm and the web page itself.
+
+## Cleaning and preparing
+
+Some modifications were done to the total document so that the algorithm could be accurate and faster, this is due to the messy data that include contractions and special characters that does not belong to the English alphabet, transformations:
+
+* Lowering all the letter to lowercase
+* Removing all extra white space
+* Substituting contractions to the full form
+* Removing special characters like (\%$>
+
+```{r onedata, include = FALSE}
+dftext <- data.frame(
+        File = 'Final text',
+        Size.Mb = 78.52802,
+        Lines = 0.667337,
+        Words.Millions = 14.18622
+        )
+colnames(dftext) <- c('File', 'Size (Mb)', 'Lines (Millions)', 'Words (Millions)')
+```
+
+```{r presentdf, echo = FALSE}
+dftext
+```
+
+Note that the algorithm uses 14 millions words, 667 thousand lines, as well as nearly 80 Mb, the small size is due to the cleaning and optimization of the data.
+
+## Katz back-off model
+
+The model uses a Katz back-off model, which employs various list of n-grams, this includes a 5-gram, 4-gram, 3-gram, 2-gram and monogram. And predicts the next word based on the last words following the order previously presented.
+
+```{r trigram, include = FALSE}
+bigram <- data.frame(ngrams = c('i am', 'of the', 'in the', 'it is', 'i have'),
+                     freq = c(54585, 51630, 49224, 48239, 28896),
+                     prop = c(0.004036763, 0.003818230, 0.003640297,
+                              0.003567453, 0.002136966))
+```
+
+Here are the most probable 2-mers, based on the data used:
+
+```{r pressure, echo = FALSE}
+head(bigram)
+```
+
+Quite logical the data as these words are commonly placed together, the text is paired and the phrase with the higher probability is chosen.
+
+## Demo of the application
+
+Here is quick demo of the final model in practice. But you can access the shiny application created by clicking this link [here](https://milkbacon.shinyapps.io/Text-predicting/).
+
+You can even use special characters or contractions and the algorithm will still predict the next word. The demo here uses the text *"I need to"*, the function which predicts the next word is called **nextword**, and we can even input the result again in the algorithm to predict the other next word.
+
+```{r demo, eval = FALSE}
+for(i in 1:7){
+           text <- paste(text, nextword(text))
+}
+```
+
+```{r print, echo = FALSE}
+text1 <- 'Initial text: I need to'
+text2 <- 'Final text: I need to get my followers up in the morning'
+
+writeLines(c(text1, text2))
+```
