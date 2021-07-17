@@ -1,0 +1,54 @@
+---
+title: "Repro_1"
+author: "Milton"
+date: "10/30/2020"
+output: html_document
+---
+
+# Reproducible Research: Course Project 1
+
+## Loading and preprocessing data
+
+```{r load}
+datos <- read.csv('activity.csv', colClasses = c('numeric', 'Date', 'numeric'))
+```
+
+## What is mean total number of steps taken per day?
+
+```{r mean_median}
+days <- abs(as.numeric(as.Date(head(datos[,'date'], 1)) - as.Date(tail(datos[,'date'], 1))))
+steps <- sum(datos$steps, na.rm = TRUE)
+paste('Mean: ', steps/days, ', Median: ', median(datos$steps, na.rm = TRUE))
+plot(x = datos$date, y = datos$steps, type = 'h', lwd = 4, xlab = 'Date', ylab = 'Steps')
+```
+
+## What is the average daily activity pattern?
+
+```{r daily_pattern}
+datos[,c('avg_inter','avg_step')] <- aggregate(datos$steps ~ datos$interval, FUN = mean)
+plot(x = datos$avg_inter, y = datos$avg_step, type = 'l', main = 'Average daily activity pattern, averaged across all days', xlab = 'Time', ylab = 'Average of steps')
+```
+
+## Imputing missing values
+
+```{r missing}
+paste('Missing values: ', sum(is.na(datos$steps)))
+index <- is.na(datos[,'steps'])
+datos[index,'steps'] <- datos[index,'avg_step']
+steps <- sum(datos$steps, na.rm = TRUE)
+paste('Mean: ', steps/days, ', Median: ', median(datos$steps, na.rm = TRUE))
+plot(x = datos$date, y = datos$steps, type = 'h', lwd = 4, xlab = 'Date', ylab = 'Steps')
+```
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r weekday}
+weekd <- c('Mon', 'Tue', 'Wed', 'Thu', 'Fri')
+indx_week <- weekdays(datos[,'date'], abbreviate = TRUE) %in% weekd
+datos[,'weekdayend'] <- 'weekend'
+datos[indx_week,'weekdayend'] <- 'weekday'
+datos[,'weekdayend'] <- as.factor(datos[,'weekdayend'])
+agg_weekday <- aggregate(datos[datos$weekdayend == 'weekday','steps'] ~ datos[datos$weekdayend == 'weekday','interval'], FUN = mean)
+plot(agg_weekday, type = 'l', main = 'Average daily weekday activity pattern, averaged across all weekdays', xlab = 'Time', ylab = 'Average of steps')
+agg_weekend <- aggregate(datos[datos$weekdayend == 'weekend','steps'] ~ datos[datos$weekdayend == 'weekend','interval'], FUN = mean)
+plot(agg_weekend, type = 'l', main = 'Average daily weekend activity pattern, averaged across all weekends', xlab = 'Time', ylab = 'Average of steps')
+```
