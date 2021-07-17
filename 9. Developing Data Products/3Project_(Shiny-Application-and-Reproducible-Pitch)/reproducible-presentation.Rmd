@@ -1,0 +1,61 @@
+---
+title: "Reproducible Pitch Presentation"
+author: "Milton Candela"
+date: "1/28/2021"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data download
+
+My application is hosted on shiny, and it uses a data set created by me, which is hosted on my github repository for reproducible research purposes, the data can be obtained from [link](https://raw.githubusercontent.com/milkbacon/9-Developing-Data-Products/main/data/diet.csv).
+
+The application lets the user select one person from the data set and one health measure, and then it fits a linear model and plot the measured values with respect to the date, as well as a red fitted line. On the application this action is more dynamic, but for the purposes of these presentation we will select just one person and one measure, resulting on one plot.
+
+On the first lines of my application we download the data:
+
+```{r data, eval = FALSE}
+urlfile <- 'https://raw.githubusercontent.com/milkbacon/9-Developing-Data-Products/main/data/diet.csv'
+if(!file.exists('dietas.csv')){
+       download.file(urlfile, 'dietas.csv')
+}
+```
+## Data formatting
+
+We then assign the data set to a variable and included the names, as well as the classes that are important to the analysis, note that we format the date column so that we can treat it as a date class, this will be very important for our plot. 
+
+```{r format}
+diet <- read.csv('dietas.csv', 
+                 col.names = c('USER', 'DATE', 'WEIGHT', 'BMI', 'BFP', 'MMP', 'VF'),
+                 colClasses = c('factor', 'character', 'numeric', 'numeric', 'numeric', 'numeric','numeric'))
+diet[,'DATE'] <- as.Date(diet[,'DATE'], format = '%m/%d/%Y')
+```
+
+Also, we select one user to plot its health values, let's say *BR* (first user), and *MMP* measure, this will be stored on two separate values.
+
+```{r select}
+selectedUser <- 'BR'
+selectedMeasure <- 'MMP'
+
+```
+
+## Data inspection
+
+Columns correspond to health factors, from left to right: weight, body mass index, body fat percentage, muscular mass percentage and visceral fat. We observe that it is collected each week and there are four users who had been checked.
+
+```{r show}
+head(diet, 6)
+person_diet <- diet[diet$USER == selectedUser,] # Subsetting the data
+```
+
+## Plotting depending on the user
+```{r plot}
+plot(x = person_diet$DATE, y = person_diet[,selectedMeasure], pch = 20,
+     xlab = 'date', ylab = tolower(selectedMeasure), col = 'darkgoldenrod',
+     main = paste('Measurement of', selectedMeasure, 'from the user', selectedUser, 'overtime'))
+abline(lm(person_diet[,selectedMeasure] ~ person_diet$DATE), col = 'red', lty = 4)
+legend('topright', 'Fitted line', lty = 2, col = 'red')
+```

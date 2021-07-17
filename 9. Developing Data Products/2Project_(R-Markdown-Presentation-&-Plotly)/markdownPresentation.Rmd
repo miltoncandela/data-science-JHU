@@ -1,0 +1,41 @@
+---
+title: "Plotly Presentation"
+author: "Milton Candela"
+date: "1/23/2021"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(plotly)
+library(dplyr)
+```
+
+## Introduction
+
+This exercise requires the following libraries:
+
+```{r libraries, eval = FALSE, warning = FALSE, error = FALSE, echo = TRUE}
+library(plotly)
+library(dplyr)
+```
+
+We will also be using the *rock* dataset from the base **datasets** package already installed in R, this is how the dataframe looks:
+
+```{r dataframe}
+head(rock)
+```
+
+## Plot created by Plotly
+
+Our data set represent different Measurements on Petroleum Rock Samples, we will plot all four elements with a 3D scatter plot, the color represents the permeability in milli-Darcies.
+
+```{r cars, echo = FALSE}
+
+plat <- plot_ly(rock, x = ~area, y = ~peri, z = ~shape, type = 'scatter3d',
+                mode = 'markers', color = ~perm) %>%
+       layout(scene = list(xaxis = list(title = 'Area of pores (Pixels)'),
+                           yaxis = list(title = 'Perimeter (Pixels)'),
+                           zaxis = list(title = 'Perimeter/sqrt(area)')))
+plat
+```

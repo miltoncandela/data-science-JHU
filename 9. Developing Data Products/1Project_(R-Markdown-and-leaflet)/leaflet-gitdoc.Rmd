@@ -1,0 +1,34 @@
+---
+title: "R-Markdown-and-leaflet"
+author: "Name: Milton Candela"
+date: "Date: 1/23/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(leaflet)
+```
+
+```{r cars, echo = FALSE}
+
+lat <- -100.2847204357147
+lng <- 25.678453330315154
+
+s1lat <- -100.29093818373711
+s1lng <- 25.673732643397514
+
+s2lat <- -100.27624563519873
+s2lng <- 25.68323008312362
+
+mapa <- leaflet() %>%
+       addTiles() %>%
+       addMarkers(lat, lng,
+                  popup = 
+                  '<a href = "https://en.wikipedia.org/wiki/Fundidora_Park">Fundidora Park!</a>
+                  <br>
+                  <img src = "https://www.greenflagaward.org/media/1346/arque-fundidora-y-canal-santa-luc%C3%ADa.jpg" height = "100" width ="500">') %>%
+       addRectangles(s1lat, s1lng, s2lat, s2lng)
+mapa
+```

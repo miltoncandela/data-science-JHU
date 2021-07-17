@@ -1,0 +1,12 @@
+name: Shiny-Application
+title: Shiny-Application
+username:
+account: milkbacon
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3530927
+bundleId: 4148483
+url: https://milkbacon.shinyapps.io/Shiny-Application/
+when: 1611734674.3504
+asMultiple: FALSE
+asStatic: FALSE
