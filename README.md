@@ -1,6 +1,6 @@
 # Data Science - Coursera
 
-Github repository for some of the courses in the "Data Science" specialization, which is a set of ten courses on Coursera delivered by "Johns Hopkins University", the courses were the following:
+Github repository for some of the courses in the [Data Science](https://www.coursera.org/specializations/jhu-data-science) specialization, which is a set of ten courses on Coursera delivered by Johns Hopkins University (JHU), the courses were the following:
 
 1. The Data Scientist's Toolbox
 2. R Programming
